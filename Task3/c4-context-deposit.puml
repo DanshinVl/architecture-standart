@@ -1,0 +1,42 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title C4 Context Diagram — MVP открытия депозитов онлайн
+
+LAYOUT_LEFT_RIGHT()
+
+Person(customer, "Клиент", "Действующий или новый клиент банка")
+Person(backoffice, "Сотрудник бэк-офиса депозитов", "Обрабатывает заявки MVP")
+Person(callcenter, "Оператор кол-центра", "Консультирует клиента по заявке с сайта")
+
+System_Boundary(bank, "Банк «Стандарт»") {
+    System(website, "Сайт банка", "PHP + React", "Показывает депозитные продукты и принимает заявку нового клиента")
+    System(internetBank, "Интернет-банк", "ASP.NET MVC / .NET Framework / MS SQL", "Показывает продукты и позволяет действующему клиенту подать заявку на депозит")
+    System(callCenterSystem, "Система кол-центра", "React + Java Spring Boot + PostgreSQL", "Хранит обращения и помогает сопровождать заявку нового клиента")
+    System(depositMvp, "MVP-система открытия депозитов", "Новый сервис/модуль", "Принимает заявки, хранит их, передаёт на обработку, управляет статусами")
+    System(abs, "АБС", "Delphi + Oracle + PL/SQL", "Основная система учёта договоров и обработки депозитных операций")
+    System(smsGateway, "SMS-шлюз", "Интеграционный шлюз", "Отправляет SMS-коды и уведомления клиентам")
+}
+
+System_Ext(telecom, "Телеком-оператор", "Внешний оператор отправки SMS")
+
+Rel(customer, website, "Просматривает продукты и оставляет заявку", "HTTPS")
+Rel(customer, internetBank, "Просматривает продукты, подаёт заявку, подтверждает SMS-кодом", "HTTPS")
+Rel(customer, callcenter, "Получает консультацию по заявке", "Телефон")
+
+Rel(website, depositMvp, "Передаёт заявку нового клиента", "HTTPS/REST")
+Rel(internetBank, depositMvp, "Передаёт заявку действующего клиента", "HTTPS/REST")
+Rel(internetBank, smsGateway, "Запрашивает отправку SMS-кода", "HTTPS/REST")
+Rel(smsGateway, telecom, "Передаёт SMS", "Интеграция")
+Rel(telecom, customer, "Доставляет SMS", "SMS")
+
+Rel(depositMvp, callCenterSystem, "Создаёт/обновляет обращение для обработки заявки с сайта", "REST")
+Rel(backoffice, abs, "Обрабатывает заявку и подтверждает условия депозита", "Desktop client")
+Rel(depositMvp, abs, "Передаёт данные заявки и получает статусы обработки", "Интеграция")
+Rel(abs, smsGateway, "Отправляет SMS после подтверждения ставки и открытия депозита", "Интеграция")
+Rel(callcenter, callCenterSystem, "Работает с обращениями", "Web UI")
+
+Rel_U(depositMvp, backoffice, "Предоставляет данные заявки для дальнейшей обработки через АБС", "Операционный процесс")
+
+SHOW_LEGEND()
+@enduml

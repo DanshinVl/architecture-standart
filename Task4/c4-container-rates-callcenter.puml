@@ -1,0 +1,52 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title C4 Container Diagram — Распространение ставок депозитов
+
+LAYOUT_LEFT_RIGHT()
+
+Person(depositBackoffice, "Сотрудник бэк-офиса депозитов", "Вводит и обновляет ставки")
+Person(creditBackoffice, "Сотрудник бэк-офиса кредитов", "Согласует специальные ставки")
+Person(callcenterOperator, "Оператор кол-центра", "Консультирует клиентов")
+
+System_Ext(partnerCallCenter, "Партнёрский кол-центр", "Внешняя система")
+
+System_Boundary(bank, "Банк «Стандарт»") {
+
+    Container_Boundary(rateBoundary, "Rate Management Solution") {
+        Container(rateUi, "Rate Management UI", "Web UI", "Интерфейс управления ставками для сотрудников бэк-офиса")
+        Container(rateApi, "Rate Management API", "REST API", "API управления и получения ставок")
+        Container(rateApp, "Rate Management Application", "Java / .NET service", "Бизнес-логика ставок, валидация, аудит изменений")
+        ContainerDb(rateDb, "Rate DB", "MS SQL / Oracle", "Хранит актуальные ставки, историю изменений, специальные ставки")
+    }
+
+    Container(callCenterSystem, "Система кол-центра банка", "React + Java Spring Boot + PostgreSQL", "Получает и отображает актуальные ставки операторам")
+
+    Container_Boundary(exportBoundary, "Экспорт ставок") {
+        Container(fileExportService, "File Export Service", "Batch / service", "Формирует файл ставок для партнёрского кол-центра")
+        Container(exportScheduler, "Export Scheduler", "Scheduler", "Запускает формирование выгрузки по расписанию")
+        Container(fileStorage, "Export File Storage", "File storage", "Хранит сформированные файлы ставок")
+    }
+}
+
+' Работа сотрудников
+Rel(depositBackoffice, rateUi, "Вводит и обновляет ставки", "HTTPS")
+Rel(creditBackoffice, rateUi, "Согласует специальные ставки", "HTTPS")
+
+' Внутри решения управления ставками
+Rel(rateUi, rateApi, "Вызывает", "HTTPS")
+Rel(rateApi, rateApp, "Передаёт команды и запросы", "Internal call")
+Rel(rateApp, rateDb, "Читает/записывает ставки", "SQL")
+
+' Внутренний кол-центр
+Rel(callCenterSystem, rateApi, "Запрашивает актуальные ставки", "REST API")
+Rel(callcenterOperator, callCenterSystem, "Использует ставки при консультации", "Web UI")
+
+' Экспорт файлов
+Rel(exportScheduler, fileExportService, "Запускает выгрузку", "Internal")
+Rel(fileExportService, rateApi, "Получает актуальные ставки", "REST API")
+Rel(fileExportService, fileStorage, "Сохраняет сформированный файл", "File I/O")
+Rel(fileStorage, partnerCallCenter, "Передаёт файл ставок", "Файл")
+
+SHOW_LEGEND()
+@enduml

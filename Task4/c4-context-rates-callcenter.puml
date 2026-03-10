@@ -1,0 +1,30 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title C4 Context Diagram — Передача ставок депозитов в кол-центры
+
+LAYOUT_LEFT_RIGHT()
+
+Person(depositBackoffice, "Сотрудник бэк-офиса депозитов", "Вводит и обновляет ставки депозитов")
+Person(creditBackoffice, "Сотрудник бэк-офиса кредитов", "Согласует специальные ставки")
+Person(callcenterOperator, "Оператор кол-центра банка", "Консультирует клиента по актуальным ставкам")
+
+System_Boundary(bank, "Банк «Стандарт»") {
+    System(rateService, "Rate Management Service", "Сервис управления ставками", "Централизованно хранит и предоставляет актуальные ставки депозитов")
+    System(callCenterSystem, "Система кол-центра банка", "React + Java Spring Boot + PostgreSQL", "Использует актуальные ставки при консультации клиентов")
+    System(fileExportService, "File Export Service", "Сервис формирования файлов", "Формирует файл со ставками для внешнего партнёра")
+}
+
+System_Ext(partnerCallCenter, "Партнёрский кол-центр", "Внешняя система", "Получает файл ставок и использует его для консультации клиентов")
+
+Rel(depositBackoffice, rateService, "Создаёт и обновляет ставки", "UI / API")
+Rel(creditBackoffice, rateService, "Согласует специальные ставки", "UI / API")
+
+Rel(rateService, callCenterSystem, "Предоставляет актуальные ставки", "REST API")
+Rel(rateService, fileExportService, "Передаёт актуальные ставки для выгрузки", "Internal call / REST")
+Rel(fileExportService, partnerCallCenter, "Передаёт файл ставок", "Файл")
+
+Rel(callcenterOperator, callCenterSystem, "Использует ставки при консультации клиента", "Web UI")
+
+SHOW_LEGEND()
+@enduml

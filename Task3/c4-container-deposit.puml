@@ -1,0 +1,84 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title C4 Container Diagram — MVP открытия депозитов онлайн
+
+LAYOUT_LEFT_RIGHT()
+
+Person(customer, "Клиент", "Действующий или новый клиент банка")
+Person(backoffice, "Сотрудник бэк-офиса депозитов", "Обрабатывает заявки MVP")
+Person(callcenter, "Оператор кол-центра", "Сопровождает заявки с сайта")
+
+System_Ext(telecom, "Телеком-оператор", "Внешний оператор отправки SMS")
+
+System_Boundary(bank, "Банк «Стандарт»") {
+
+    System_Boundary(webChannel, "Интернет-каналы") {
+        Container(websiteUi, "Сайт банка", "PHP + React", "Показывает депозитные продукты и собирает заявку нового клиента")
+
+        Container_Boundary(ibBoundary, "Интернет-банк") {
+            Container(ibWeb, "Web UI", "ASP.NET MVC", "Личный кабинет клиента, форма заявки, просмотр статуса")
+            Container(ibApp, "Application Layer", ".NET Framework", "Обрабатывает пользовательские запросы и вызывает сервисы")
+            ContainerDb(ibDb, "IB Database", "MS SQL", "Пользовательские данные и данные интернет-банка")
+        }
+    }
+
+    Container_Boundary(mvpBoundary, "MVP открытия депозитов") {
+        Container(apiGateway, "Channel API / BFF", "REST API", "Единая точка входа для сайта и интернет-банка")
+        Container(depositAppService, "Deposit Application Service", "Java/.NET service", "Принимает заявки, валидирует данные, управляет статусами")
+        Container(rateService, "Rate Service", "Java/.NET service", "Предоставляет актуальные депозитные ставки")
+        Container(notificationService, "Notification Service", "Java/.NET service", "Инициирует уведомления клиенту")
+        ContainerDb(depositDb, "Deposit Application DB", "MS SQL / Oracle", "Хранит заявки, статусы, историю обработки")
+    }
+
+    Container(callCenterSystem, "Система кол-центра", "React + Java Spring Boot + PostgreSQL", "Работа с обращениями клиентов")
+
+    Container(smsGateway, "SMS-шлюз", "Integration Gateway", "Отправка SMS-кодов и уведомлений")
+
+    Container_Boundary(absBoundary, "АБС") {
+        Container(absFront, "ABS Client", "Delphi desktop client", "Рабочее место сотрудника бэк-офиса")
+        Container(absIntegration, "ABS Integration Layer", "PL/SQL procedures / integration module", "Принимает входящие данные по заявкам и передаёт статусы")
+        Container(absDepositModule, "Deposit Processing Module", "PL/SQL", "Логика обработки депозитной заявки и открытия депозита")
+        Container(absContractModule, "Contract Management Module", "PL/SQL", "Создание и сопровождение депозитного договора")
+        ContainerDb(absDb, "ABS Database", "Oracle", "Операционные данные, договоры, статусы")
+    }
+}
+
+' Клиентские взаимодействия
+Rel(customer, websiteUi, "Просматривает продукты и подаёт заявку", "HTTPS")
+Rel(customer, ibWeb, "Просматривает продукты, подаёт заявку, смотрит статус", "HTTPS")
+Rel(customer, telecom, "Получает SMS-коды и уведомления", "SMS")
+
+' Интернет-банк
+Rel(ibWeb, ibApp, "Вызывает", "HTTP")
+Rel(ibApp, ibDb, "Читает/записывает", "SQL")
+Rel(ibApp, apiGateway, "Передаёт заявку и запрашивает статус", "REST")
+Rel(ibApp, smsGateway, "Запрашивает отправку SMS-кода подтверждения", "REST")
+
+' Сайт
+Rel(websiteUi, apiGateway, "Передаёт заявку нового клиента", "REST")
+
+' MVP слой
+Rel(apiGateway, depositAppService, "Маршрутизация запросов", "Internal call")
+Rel(depositAppService, rateService, "Запрашивает актуальные ставки", "Internal call")
+Rel(depositAppService, depositDb, "Хранит заявки и статусы", "SQL")
+Rel(depositAppService, callCenterSystem, "Создаёт/обновляет обращение по заявке с сайта", "REST")
+Rel(depositAppService, absIntegration, "Передаёт заявку в АБС и получает статус", "Integration API / DB adapter")
+Rel(depositAppService, notificationService, "Передаёт события о статусе заявки", "Internal call")
+Rel(notificationService, smsGateway, "Отправляет SMS-уведомления", "REST")
+
+' АБС
+Rel(backoffice, absFront, "Работает с заявкой", "Desktop UI")
+Rel(absFront, absDepositModule, "Вызывает бизнес-логику", "Internal")
+Rel(absDepositModule, absContractModule, "Создаёт договор", "Internal")
+Rel(absIntegration, absDepositModule, "Передаёт заявку в обработку", "Internal")
+Rel(absDepositModule, absDb, "Читает/записывает", "Oracle SQL")
+Rel(absContractModule, absDb, "Читает/записывает", "Oracle SQL")
+Rel(absDepositModule, smsGateway, "Отправляет SMS после подтверждения ставки / открытия депозита", "Integration")
+Rel(smsGateway, telecom, "Передаёт SMS", "Integration")
+
+' Кол-центр
+Rel(callcenter, callCenterSystem, "Работает с обращением", "Web UI")
+
+SHOW_LEGEND()
+@enduml
